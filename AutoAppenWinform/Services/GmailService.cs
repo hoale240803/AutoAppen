@@ -4,15 +4,18 @@ using Google.Apis.Gmail.v1.Data;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
 using Newtonsoft.Json;
-using System;
+using OpenQA.Selenium;
 using System.Diagnostics;
+using System.Drawing.Imaging;
 using System.Net;
 using System.Runtime.InteropServices;
-using System.Security.Policy;
 using System.Text;
+using ZXing;
+using ZXing.Common;
 using GmailServices = Google.Apis.Gmail.v1.GmailService;
 using IGmailService = AutoAppenWinform.Services.Interfaces.IGmailService;
 using Message = Google.Apis.Gmail.v1.Data.Message;
+using Process = System.Diagnostics.Process;
 
 namespace AutoAppenWinform.Services
 {
@@ -61,35 +64,10 @@ namespace AutoAppenWinform.Services
             // Opens request in the browser.
 
             // TODO: Debug in library in C#
-        
-           
 
             try
             {
-                
-
-                //System.Diagnostics.Process myProc = new System.Diagnostics.Process();
-                //myProc.StartInfo.UseShellExecute = false;
-                //myProc.StartInfo.RedirectStandardOutput = true;
-                //myProc.StartInfo.RedirectStandardError = true;
-                Process.Start("https://google.com");
-
-
-                using (Process compiler = new Process())
-                {
-                    compiler.StartInfo.FileName = "csc.exe";
-                    compiler.StartInfo.Arguments = "/r:System.dll /out:sample.exe stdstr.cs";
-                    compiler.StartInfo.UseShellExecute = false;
-                    compiler.StartInfo.RedirectStandardOutput = true;
-                    compiler.Start();
-
-                    Console.WriteLine(compiler.StandardOutput.ReadToEnd());
-
-                    compiler.WaitForExit();
-                }
-
-
-
+                Process.Start("\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\"", authorizationRequest);
             }
             catch
             {
@@ -191,9 +169,7 @@ namespace AutoAppenWinform.Services
             // Creates the OAuth 2.0 authorization request.
             var authorizationRequest = CreateGmailOAth2AuthorizationRequest(redirectURI, state, code_challenge, code_challenge_method);
 
-
-           Process.Start(authorizationRequest);
-
+            Process.Start("\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\"", authorizationRequest);
 
             var context = await http.GetContextAsync();
 
@@ -355,35 +331,46 @@ namespace AutoAppenWinform.Services
             {
                 // reads response body
                 string userinfoResponseText = await userinfoResponseReader.ReadToEndAsync();
+
                 Output(userinfoResponseText);
             }
         }
 
         public async Task<string> GetGmailVerificationCode(string access_token)
         {
-            Output("Making API Call to Userinfo...");
-
-            // builds the  request
-            string gmailRequestURI = "https://gmail.googleapis.com";
-
-            // sends the request
-            HttpWebRequest gmailRequest = (HttpWebRequest)WebRequest.Create(gmailRequestURI);
-            gmailRequest.Method = "GET";
-            gmailRequest.Headers.Add(string.Format("Authorization: Bearer {0}", access_token));
-            gmailRequest.ContentType = "application/x-www-form-urlencoded";
-            gmailRequest.Accept = "Accept=text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
-            
-
-            // gets the response
-            WebResponse userinfoResponse = await gmailRequest.GetResponseAsync();
-            using (StreamReader userinfoResponseReader = new StreamReader(userinfoResponse.GetResponseStream()))
+            try
             {
-                // reads response body
-                string gmailResponseText = await userinfoResponseReader.ReadToEndAsync();
+                Output("Making API Call to Userinfo...");
 
-                Output(gmailResponseText);
+                // builds the  request
+                string gmailRequestURI = "https://gmail.googleapis.com//gmail/v1/users/me/messages";
 
-                return gmailResponseText;
+                // sends the request
+                HttpWebRequest gmailRequest = (HttpWebRequest)WebRequest.Create(gmailRequestURI);
+                gmailRequest.Method = "GET";
+                gmailRequest.Headers.Add(string.Format("Authorization: Bearer {0}", access_token));
+                gmailRequest.ContentType = "application/x-www-form-urlencoded";
+                gmailRequest.Accept = "Accept=text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+
+                // gets the response
+                WebResponse userinfoResponse = await gmailRequest.GetResponseAsync();
+                using (StreamReader userinfoResponseReader = new StreamReader(userinfoResponse.GetResponseStream()))
+                {
+                    // reads response body
+                    string gmailResponseText = await userinfoResponseReader.ReadToEndAsync();
+
+                    // TODO: TADA get list messages
+
+                    var myUnReadMsg = JsonConvert.DeserializeObject<ListMessagesResponse>(gmailResponseText);
+
+                    Output(gmailResponseText);
+
+                    return gmailResponseText;
+                }
+            }
+            catch (Exception ex)
+            {
+                throw;
             }
         }
 
@@ -445,6 +432,38 @@ namespace AutoAppenWinform.Services
         public string ReadCodeFromMessage()
         {
             return string.Empty;
+        }
+
+        public void TakeScreenShot(WebDriver driver)
+        {
+            string subPath = @"C://Apppen/"; // Your code goes here
+
+            string imgUrl = @"C://Apppen/appen.png";
+
+            bool exists = Directory.Exists(subPath);
+
+            if (!exists)
+                Directory.CreateDirectory(subPath);
+
+            Screenshot ss = ((ITakesScreenshot)driver).GetScreenshot();
+            ss.SaveAsFile(imgUrl, ScreenshotImageFormat.Png);
+
+            var text = ScanQRCode(imgUrl);
+        }
+
+        public string ScanQRCode(string imgUrl)
+        {
+            // more details: https://csharp.hotexamples.com/examples/ZXing/BinaryBitmap/-/php-binarybitmap-class-examples.html
+            imgUrl = @"C://Apppen/vn.png";
+            var img = Image.FromFile(imgUrl);
+            var bmap = new Bitmap(img);
+            var ms = new MemoryStream();
+            bmap.Save(ms, ImageFormat.Bmp);
+            var bytes = ms.GetBuffer();
+            LuminanceSource source = new RGBLuminanceSource(bytes, bmap.Width, bmap.Height);
+            var bitmap = new BinaryBitmap(new HybridBinarizer(source));
+            var result = new MultiFormatReader().decode(bitmap);
+            return result.Text;
         }
 
         public void GetMessageDetail(string messageId)
@@ -516,6 +535,5 @@ namespace AutoAppenWinform.Services
         {
             Console.WriteLine("Hello");
         }
-
     }
 }

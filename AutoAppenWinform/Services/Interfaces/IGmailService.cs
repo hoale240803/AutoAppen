@@ -1,4 +1,6 @@
-﻿namespace AutoAppenWinform.Services.Interfaces
+﻿using OpenQA.Selenium;
+
+namespace AutoAppenWinform.Services.Interfaces
 {
     public interface IGmailService
     {
@@ -14,5 +16,7 @@
         string CreateGmailOAth2AuthorizationRequest(string redirectURI, string state, string code_challenge, string code_challenge_method);
 
         void LoginGmailAccount();
+
+        void TakeScreenShot(WebDriver driver);
     }
 }

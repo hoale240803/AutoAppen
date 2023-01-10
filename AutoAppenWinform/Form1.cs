@@ -45,9 +45,11 @@ namespace AutoAppenWinform
         private void stopBtn_Click(object sender, EventArgs e)
         {
             MessageBox.Show("stop clicked");
+
+            OpenBrowser();
         }
 
-        private void startBtn_Click(object sender, EventArgs e)
+        private async void startBtn_Click(object sender, EventArgs e)
         {
             try
             {
@@ -71,7 +73,7 @@ namespace AutoAppenWinform
 
                // OpenBrowser();
 
-                string access_token = _gmailService.GetAccessToken().Result;
+                string access_token = await _gmailService.GetAccessToken();
                 _gmailService.GetGmailVerificationCode(access_token);
 
                 // TODO: 3. Fake ip
@@ -134,6 +136,13 @@ namespace AutoAppenWinform
                 driver.Navigate().GoToUrl("https://mail.google.com/mail/");
                 Thread.Sleep(2000);
 
+
+
+                // TODO: Test screenshot 
+
+
+                _gmailService.TakeScreenShot(driver);
+
                 var emailTxtboxXPath = @"//*[@id=""identifierId""]";
                 IWebElement emailTxtbox = driver.FindElement(By.XPath(emailTxtboxXPath));
                 if (emailTxtbox != null)
@@ -164,6 +173,9 @@ namespace AutoAppenWinform
 
                 // TODO: 3. Get Access Token
                 GetAccessToken(http, state, code_vefifier, redirectURI);
+
+
+
             }
             catch (Exception ex)
             {
