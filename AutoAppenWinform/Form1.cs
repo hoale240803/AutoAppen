@@ -71,17 +71,22 @@ namespace AutoAppenWinform
 
                 // TODO: 2.2 Open browser and login
 
-               // OpenBrowser();
+                // OpenBrowser();
 
                 string access_token = await _gmailService.GetAccessToken();
                 _gmailService.GetGmailVerificationCode(access_token);
 
                 // TODO: 3. Fake ip
 
+                // TODO: 3.1 Buy ip with specific country (by s5proxy tool)
+                int quantity = 0;
+                string country = "TW";
+                BuyIdWithSpecificCountry(quantity, country, "test");
+                // TODO: 3.2 Create ip with that country (by Hidemyacc tool)
+
                 // TODO: 4. Register Appen
 
                 // TODO: 5. Get verification code
-                //
 
                 // TODO: 6. Bypass Mobile Scan
             }
@@ -89,6 +94,15 @@ namespace AutoAppenWinform
             {
                 throw;
             }
+        }
+
+        private void BuyIdWithSpecificCountry(int quantity, string countryCode, string env)
+        {
+            var host = "http://192.168.1.41";
+            string t = (env == "test") ? "free" : "txt";
+            var path = $"{host}:9049/v1/ips?num={quantity}&country={countryCode}&state=all&city=all&zip=all&t={t}&port=40000&isp=all&start=&end=";
+            //HttpClient
+            throw new NotImplementedException();
         }
 
         private bool AnyStartingAccount()
@@ -136,10 +150,7 @@ namespace AutoAppenWinform
                 driver.Navigate().GoToUrl("https://mail.google.com/mail/");
                 Thread.Sleep(2000);
 
-
-
-                // TODO: Test screenshot 
-
+                // TODO: Test screenshot
 
                 _gmailService.TakeScreenShot(driver);
 
@@ -172,10 +183,7 @@ namespace AutoAppenWinform
                 }
 
                 // TODO: 3. Get Access Token
-                GetAccessToken(http, state, code_vefifier, redirectURI);
-
-
-
+                var accessToken = GetAccessToken(http, state, code_vefifier, redirectURI);
             }
             catch (Exception ex)
             {
