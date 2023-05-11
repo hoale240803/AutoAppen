@@ -2,15 +2,22 @@
 using AutoAppenWinform.Resources;
 using AutoAppenWinform.Services.Interfaces;
 using AutoAppenWinform.Utils;
+using Google.Apis;
 using Microsoft.Office.Interop.Excel;
 using Newtonsoft.Json;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
+using System;
 using System.Net;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
+using static AutoAppenWinform.Services.StartProfileOptions;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using Application = Microsoft.Office.Interop.Excel.Application;
 using Range = Microsoft.Office.Interop.Excel.Range;
+using AutoAppenWinform.Models.HideMyAcc;
 
 namespace AutoAppenWinform
 {
@@ -54,34 +61,34 @@ namespace AutoAppenWinform
             try
             {
                 // TODO: 1. Validate at least one DataGrid selected
-                if (dataGrid.SelectedRows.Count == 0 || dataGrid.SelectedRows.Count > 1)
-                {
-                    MessageBox.Show("Please select one Account");
-                    return;
-                }
-                else if (AnyStartingAccount())
-                {
-                    MessageBox.Show(ErrorMessages.StartingAccount);
-                    return;
-                }
+                //if (dataGrid.SelectedRows.Count == 0 || dataGrid.SelectedRows.Count > 1)
+                //{
+                //    MessageBox.Show("Please select one Account");
+                //    return;
+                //}
+                //if (AnyStartingAccount())
+                //{
+                //    MessageBox.Show(ErrorMessages.StartingAccount);
+                //    return;
+                //}
 
-                // TODO: 2.1 Set state for Selected account
+                //// TODO: 2.1 Set state for Selected account
+                //SetStatusAccount();
 
-                SetStatusAccount();
+                //// TODO: 2.2 Open browser and login
 
-                // TODO: 2.2 Open browser and login
+                //// OpenBrowser();
 
-                // OpenBrowser();
+                //string access_token = await _gmailService.GetAccessToken();
+                //var verificationCode = await _gmailService.GetGmailVerificationCode(access_token);
 
-                string access_token = await _gmailService.GetAccessToken();
-                _gmailService.GetGmailVerificationCode(access_token);
+                //// TODO: 3. Fake ip
 
-                // TODO: 3. Fake ip
-
-                // TODO: 3.1 Buy ip with specific country (by s5proxy tool)
+                //// TODO: 3.1 Buy ip with specific country (by s5proxy tool)
                 int quantity = 0;
                 string country = "TW";
-                BuyIdWithSpecificCountry(quantity, country, "test");
+                await BuyIdWithSpecificCountryAsync(quantity, country, "test");
+
                 // TODO: 3.2 Create ip with that country (by Hidemyacc tool)
 
                 // TODO: 4. Register Appen
@@ -96,13 +103,113 @@ namespace AutoAppenWinform
             }
         }
 
-        private void BuyIdWithSpecificCountry(int quantity, string countryCode, string env)
+        private async Task BuyIdWithSpecificCountryAsync(int quantity, string countryCode, string env)
         {
-            var host = "http://192.168.1.41";
-            string t = (env == "test") ? "free" : "txt";
-            var path = $"{host}:9049/v1/ips?num={quantity}&country={countryCode}&state=all&city=all&zip=all&t={t}&port=40000&isp=all&start=&end=";
-            //HttpClient
-            throw new NotImplementedException();
+            var hideMyAccUrl = $"http://localhost:12368/profiles";
+            try
+            {
+               // string testfreePortProxyParseUrl = $"http://127.0.0.1:50101/api/port_free?free_port=40000,40001,40002";
+                string usMichiganProxy = $"http://127.0.0.1:40000";
+
+
+                var httpClientHandler = new HttpClientHandler
+                {
+                    Proxy = new WebProxy(usMichiganProxy),
+                    UseProxy = true,
+
+                };
+                var httpClient = new HttpClient(httpClientHandler);
+
+
+                //var url = "http://localhost:12368/me";
+               
+                var httpClient2 = new HttpClient();
+           
+
+
+
+
+
+                var profile = await CreateProfileAsync();
+
+                var runProfile = await RunProfileAsync(profile?.Id);
+
+
+                var proxiedUrl = $"{runProfile.WsUrl}:{runProfile.Port}";
+                // TODO run profile
+
+                // CheckCurrentProxy
+              // await CheckCurrentProxy();
+
+            }
+            catch (HttpRequestException ex)
+            {
+
+                throw;
+            }
+
+            return;
+        }
+
+        private async Task<HideMyAccRunProfile> RunProfileAsync(string profileId)
+        {
+            profileId = $"645d09c6c4b153e599ebc318";
+            var runProfileUrl = $"http://localhost:12368/profiles/start/{profileId}";
+
+            using var client = new HttpClient();
+
+            var response = await client.PostAsync(runProfileUrl, null);
+
+            if(response.StatusCode != HttpStatusCode.OK)
+            {
+                throw new Exception("Run Profile failed");
+            }
+
+            var resStr = await response.Content.ReadAsStringAsync();
+
+            var runProfile = JsonConvert.DeserializeObject<HideMyAccBaseRes<HideMyAccRunProfile>>(resStr);
+
+            return runProfile.Data;
+        }
+
+        public async Task CheckCurrentProxy()
+        {
+            // Create a new HttpClient instance
+            var httpClient = new HttpClient();
+
+            // Make a request to the httpbin.org/get service
+            var response = await httpClient.GetAsync("https://httpbin.org/get");
+
+            // Read the response content as a string
+            var responseContent = await response.Content.ReadAsStringAsync();
+        }
+
+        private async Task<HideMyAccProfile> CreateProfileAsync()
+        {
+            var localApiUrl = "http://localhost:12368/profiles";
+            var os = "win";
+            var name = "hoa_test 752023 6";
+            var notes = "hoa_example";
+            var browser = "chrome";
+            var proxy = "{\"host\":\"127.0.0.1\",\"mode\":\"socks5\",\"port\":40000}";
+
+            using var client = new HttpClient();
+            var requestContent = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("os", os),
+                new KeyValuePair<string, string>("name", name),
+                new KeyValuePair<string, string>("notes", notes),
+                new KeyValuePair<string, string>("browser", browser),
+                new KeyValuePair<string, string>("proxy", proxy),
+            });
+
+            var response = await client.PostAsync(localApiUrl, requestContent);
+            
+
+            var resStr = await response.Content.ReadAsStringAsync();
+            var hideMyAccBaseRes = JsonConvert.DeserializeObject<HideMyAccBaseRes<HideMyAccProfile>>(resStr);
+
+            return hideMyAccBaseRes.Data;
         }
 
         private bool AnyStartingAccount()

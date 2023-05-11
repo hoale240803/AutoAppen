@@ -61,6 +61,15 @@ namespace AutoAppenWinform.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Failed run profile.
+        /// </summary>
+        public static string FailedRunProfile {
+            get {
+                return ResourceManager.GetString("FailedRunProfile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to One Account is running. Please wait until it has done.
         /// </summary>
         public static string StartingAccount {

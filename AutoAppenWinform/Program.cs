@@ -13,18 +13,27 @@ namespace AutoAppenWinform
         [STAThread]
         private static void Main()
         {
-            // To customize application configuration such as set high DPI settings or default font,
-            // see https://aka.ms/applicationconfiguration.
-            ApplicationConfiguration.Initialize();
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
+            try
+            {
 
-            var host = CreateHostBuilder().Build();
-            ServiceProvider = host.Services;
+                // To customize application configuration such as set high DPI settings or default font,
+                // see https://aka.ms/applicationconfiguration.
+                ApplicationConfiguration.Initialize();
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
 
-            Application.Run(ServiceProvider.GetRequiredService<AutoAppen>());
+                var host = CreateHostBuilder().Build();
+                ServiceProvider = host.Services;
 
-            //Application.Run(new AutoAppen());
+                Application.Run(ServiceProvider.GetRequiredService<AutoAppen>());
+
+                //Application.Run(new AutoAppen());
+            }
+            catch (Exception ex)
+            {
+
+                throw;
+            }
         }
 
         // TODO: 1. Dependency Injection in winform more detail
