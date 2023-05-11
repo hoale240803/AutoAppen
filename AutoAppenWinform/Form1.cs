@@ -1,23 +1,16 @@
 ﻿using AutoAppenWinform.Enum;
-using AutoAppenWinform.Resources;
+using AutoAppenWinform.Models.HideMyAcc;
 using AutoAppenWinform.Services.Interfaces;
 using AutoAppenWinform.Utils;
-using Google.Apis;
 using Microsoft.Office.Interop.Excel;
 using Newtonsoft.Json;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
-using System;
 using System.Net;
-using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
-using static AutoAppenWinform.Services.StartProfileOptions;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using Application = Microsoft.Office.Interop.Excel.Application;
 using Range = Microsoft.Office.Interop.Excel.Range;
-using AutoAppenWinform.Models.HideMyAcc;
 
 namespace AutoAppenWinform
 {
@@ -108,43 +101,32 @@ namespace AutoAppenWinform
             var hideMyAccUrl = $"http://localhost:12368/profiles";
             try
             {
-               // string testfreePortProxyParseUrl = $"http://127.0.0.1:50101/api/port_free?free_port=40000,40001,40002";
+                // string testfreePortProxyParseUrl = $"http://127.0.0.1:50101/api/port_free?free_port=40000,40001,40002";
                 string usMichiganProxy = $"http://127.0.0.1:40000";
-
 
                 var httpClientHandler = new HttpClientHandler
                 {
                     Proxy = new WebProxy(usMichiganProxy),
                     UseProxy = true,
-
                 };
                 var httpClient = new HttpClient(httpClientHandler);
 
-
                 //var url = "http://localhost:12368/me";
-               
+
                 var httpClient2 = new HttpClient();
-           
-
-
-
-
 
                 var profile = await CreateProfileAsync();
 
                 var runProfile = await RunProfileAsync(profile?.Id);
 
-
                 var proxiedUrl = $"{runProfile.WsUrl}:{runProfile.Port}";
                 // TODO run profile
 
                 // CheckCurrentProxy
-              // await CheckCurrentProxy();
-
+                // await CheckCurrentProxy();
             }
             catch (HttpRequestException ex)
             {
-
                 throw;
             }
 
@@ -160,7 +142,7 @@ namespace AutoAppenWinform
 
             var response = await client.PostAsync(runProfileUrl, null);
 
-            if(response.StatusCode != HttpStatusCode.OK)
+            if (response.StatusCode != HttpStatusCode.OK)
             {
                 throw new Exception("Run Profile failed");
             }
@@ -204,7 +186,6 @@ namespace AutoAppenWinform
             });
 
             var response = await client.PostAsync(localApiUrl, requestContent);
-            
 
             var resStr = await response.Content.ReadAsStringAsync();
             var hideMyAccBaseRes = JsonConvert.DeserializeObject<HideMyAccBaseRes<HideMyAccProfile>>(resStr);
