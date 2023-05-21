@@ -1,16 +1,18 @@
 ﻿using AutoAppenWinform.Enum;
 using AutoAppenWinform.Models.HideMyAcc;
+using AutoAppenWinform.Resources;
 using AutoAppenWinform.Services.Interfaces;
 using AutoAppenWinform.Utils;
-using Microsoft.Office.Interop.Excel;
 using Newtonsoft.Json;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
+using System.Diagnostics;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
-using Application = Microsoft.Office.Interop.Excel.Application;
-using Range = Microsoft.Office.Interop.Excel.Range;
+using static System.Net.Mime.MediaTypeNames;
+//using Application = Microsoft.Office.Interop.Excel.Application;
+//using Range = Microsoft.Office.Interop.Excel.Range;
 
 namespace AutoAppenWinform
 {
@@ -44,9 +46,36 @@ namespace AutoAppenWinform
 
         private void stopBtn_Click(object sender, EventArgs e)
         {
-            MessageBox.Show("stop clicked");
+            //MessageBox.Show("stop clicked");
 
             OpenBrowser();
+        }
+
+        public void RunChromeWithSpecificProfile()
+        {
+            string chromePath = @"C:\Program Files\Google\Chrome\Application\";
+            string profilePath = @"C:\HoaLe\Workspace\temp\testprofile";
+            string command = $"chrome.exe --remote-debugging-port=9222 --user-data-dir=\"{profilePath}\"";
+
+            // Check if the profile folder exists
+            if (!Directory.Exists(profilePath))
+            {
+                // Create the profile folder
+                Directory.CreateDirectory(profilePath);
+                Console.WriteLine("Profile folder created.");
+            }
+
+            // Start CMD process
+            ProcessStartInfo startInfo = new ProcessStartInfo("cmd.exe");
+            startInfo.WorkingDirectory = chromePath;
+            startInfo.Arguments = $"/k {command}";
+
+            Process process = new Process();
+            process.StartInfo = startInfo;
+            process.Start();
+
+            // Wait for the CMD process to exit
+            //process.WaitForExit();
         }
 
         private async void startBtn_Click(object sender, EventArgs e)
@@ -65,22 +94,25 @@ namespace AutoAppenWinform
                 //    return;
                 //}
 
-                //// TODO: 2.1 Set state for Selected account
+                // TODO: 2.1 Set state for Selected account
                 //SetStatusAccount();
 
-                //// TODO: 2.2 Open browser and login
+                // TODO: Run chrome under specific profile
+                RunChromeWithSpecificProfile();
 
-                //// OpenBrowser();
+                // TODO: 2.2 Open browser and login
 
-                //string access_token = await _gmailService.GetAccessToken();
-                //var verificationCode = await _gmailService.GetGmailVerificationCode(access_token);
+                var accessToken = OpenBrowser();
+
+                //string accessToken = await _gmailService.GetAccessToken();
+                var verificationCode = await _gmailService.GetGmailVerificationCode(accessToken);
 
                 //// TODO: 3. Fake ip
 
                 //// TODO: 3.1 Buy ip with specific country (by s5proxy tool)
-                int quantity = 0;
-                string country = "TW";
-                await BuyIdWithSpecificCountryAsync(quantity, country, "test");
+                //int quantity = 0;
+                //string country = "TW";
+                //await BuyIdWithSpecificCountryAsync(quantity, country, "test");
 
                 // TODO: 3.2 Create ip with that country (by Hidemyacc tool)
 
@@ -225,9 +257,13 @@ namespace AutoAppenWinform
             // TODO: 2. Set Progress
         }
 
-        private void OpenBrowser()
+        private string OpenBrowser()
         {
-            WebDriver driver = new ChromeDriver();
+
+            var option = new ChromeOptions();
+            option.DebuggerAddress = @"127.0.0.1:9222";
+            //option.DebuggerAddress = "http://localhost:9222";
+            WebDriver driver = new ChromeDriver(option);
             try
             {
                 // TODO: 1. Get authorization request
@@ -235,32 +271,50 @@ namespace AutoAppenWinform
 
                 // TODO: 2. Navigation to authorizationReq;
 
-                driver.Navigate().GoToUrl("https://mail.google.com/mail/");
+                driver.Navigate().GoToUrl("https://accounts.google.com/");
+
+                // TODO 1. case signed out => Add another account
+                // TODO 2. case login first time => Add another account
+
+                //driver.Navigate().GoToUrl("https://accounts.google.com/v3/signin/identifier?dsh=S-1325208617%3A1684050525766596&ifkv=Af_xneGMc9kYZCTpqVbpP3euwmOilI0Wg20qQZoLLL9A7BpU5_iqF9uIA8ijMVOZ4NJpJrKTNZ9Zlw&service=mail&flowName=GlifWebSignIn&flowEntry=ServiceLogin");
                 Thread.Sleep(2000);
 
                 // TODO: Test screenshot
 
-                _gmailService.TakeScreenShot(driver);
+                //_gmailService.TakeScreenShot(driver);
 
                 var emailTxtboxXPath = @"//*[@id=""identifierId""]";
                 IWebElement emailTxtbox = driver.FindElement(By.XPath(emailTxtboxXPath));
                 if (emailTxtbox != null)
                 {
+
+                    //driver.FindElement
                     // Identify Google Email
                     var emailParam = "trungleo08241999@gmail.com";
-                    var pass = "HoaLGoogle99123!@#";
-                    emailTxtbox.SendKeys(emailParam);
+                    var pass = "TrungLGoogle99123@";
+
+                    foreach (char e in emailParam)
+                    {
+                        emailTxtbox.SendKeys(e.ToString());
+                        Thread.Sleep(200); // Delay of 200 milliseconds
+                    }
+
 
                     // TODO: 4. Identify Continue Button
                     var continueBtnXPath = @"//*[@id=""identifierNext""]/div/button";
                     IWebElement continueBtn = driver.FindElement(By.XPath(continueBtnXPath));
                     continueBtn.Click();
-                    Thread.Sleep(2000);
+                    Thread.Sleep(5000);
 
                     // TODO: 5. Fill password
-                    var passTxtXPath = @"//*[@id=""password""]/div[1]/div/div[1]/input";
+                    //var passTxtXPath = @"//*[@id=""password""]/div[1]/div/div[1]/input";
                     IWebElement passTxt = driver.FindElement(By.Name("Passwd"));
-                    passTxt.SendKeys(pass);
+
+                    foreach (char p in pass)
+                    {
+                        passTxt.SendKeys(p.ToString());
+                        Thread.Sleep(200); // Delay of 200 milliseconds
+                    }
 
                     // TODO: 6. Identify Continue Button
                     var nextBtnXPath = @"//*[@id=""passwordNext""]/div/button";
@@ -272,9 +326,14 @@ namespace AutoAppenWinform
 
                 // TODO: 3. Get Access Token
                 var accessToken = GetAccessToken(http, state, code_vefifier, redirectURI);
+                return accessToken;
             }
             catch (Exception ex)
             {
+
+                // use another account
+                var useAnotherAccountBtn = @"//*[@id=""view_container""]/div/div/div[2]/div/div[1]/div/form/span/section/div/div/div/div/ul/li[2]";
+                driver.FindElement(By.XPath(useAnotherAccountBtn));
                 throw ex;
             }
             finally { driver.Quit(); }
@@ -345,12 +404,12 @@ namespace AutoAppenWinform
             Output("Authorization code: " + code);
 
             // Starts the code exchange at the Token Endpoint.
-            var accessToken = performCodeExchange(code, code_verifier, redirectURI).Result;
+            var accessToken = PerformCodeExchange(code, code_verifier, redirectURI).Result;
 
             return accessToken;
         }
 
-        private async Task<string> performCodeExchange(string code, string code_verifier, string redirectURI)
+        private async Task<string> PerformCodeExchange(string code, string code_verifier, string redirectURI)
         {
             Output("Exchanging code for tokens...");
 
@@ -606,80 +665,80 @@ namespace AutoAppenWinform
 
         private void openFileBtn_Click(object sender, EventArgs e)
         {
-            try
-            {
-                profileExcelFile.ShowDialog();
-                profileExcelFile.Filter = "All files (*.*)|*.*|All files (*.*)|*.*";
-                //profileExcelFile.Filter = "Excel Files|*.xls;*.xlsx;*.xlsm";
+            //try
+            //{
+            //    profileExcelFile.ShowDialog();
+            //    profileExcelFile.Filter = "All files (*.*)|*.*|All files (*.*)|*.*";
+            //    //profileExcelFile.Filter = "Excel Files|*.xls;*.xlsx;*.xlsm";
 
-                string fileName = profileExcelFile.FileName;
+            //    string fileName = profileExcelFile.FileName;
 
-                if (profileExcelFile.ShowDialog() == DialogResult.OK)
-                {
-                    fileName = profileExcelFile.FileName;
+            //    if (profileExcelFile.ShowDialog() == DialogResult.OK)
+            //    {
+            //        fileName = profileExcelFile.FileName;
 
-                    // Show path of path
-                    excelFileTxt.Text = fileName;
-                    LoadExcelFile(fileName);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-                throw ex;
-            }
+            //        // Show path of path
+            //        excelFileTxt.Text = fileName;
+            //        LoadExcelFile(fileName);
+            //    }
+            //}
+            //catch (Exception ex)
+            //{
+            //    MessageBox.Show(ex.Message);
+            //    throw ex;
+            //}
         }
 
-        private void LoadExcelFile(string fileName)
-        {
-            Application xlApp = new Application();
-            Workbook xlWorkbook = xlApp.Workbooks.Open(fileName);
-            Worksheet xlWorksheet = xlWorkbook.Sheets[1];
-            Range xlRange = xlWorksheet.UsedRange;
+        //private void LoadExcelFile(string fileName)
+        //{
+        //    Application xlApp = new Application();
+        //    Workbook xlWorkbook = xlApp.Workbooks.Open(fileName);
+        //    Worksheet xlWorksheet = xlWorkbook.Sheets[1];
+        //    Range xlRange = xlWorksheet.UsedRange;
 
-            int rowCount = xlRange.Rows.Count;
-            int colCount = xlRange.Columns.Count;
+        //    int rowCount = xlRange.Rows.Count;
+        //    int colCount = xlRange.Columns.Count;
 
-            dataGrid.ColumnCount = colCount + 1;
-            dataGrid.RowCount = rowCount;
+        //    dataGrid.ColumnCount = colCount + 1;
+        //    dataGrid.RowCount = rowCount;
 
-            for (int i = 1; i <= rowCount; i++)
-            {
-                for (int j = 1; j <= colCount; j++)
-                {
-                    //write the value to the Grid
-                    var cell = xlRange.Cells[i + 1, j];
-                    var cellValue = xlRange.Cells[i + 1, j].Value2;
-                    // xlRange.Cells[i + 1, j]  to skip Header
-                    if (xlRange.Cells[i + 1, j] != null && xlRange.Cells[i + 1, j].Value2 != null)
-                    {
-                        dataGrid.Rows[i - 1].Cells[j].Value = xlRange.Cells[i + 1, j].Value2.ToString();
-                    }
-                    // Console.Write(xlRange.Cells[i, j].Value2.ToString() + "\t");
+        //    for (int i = 1; i <= rowCount; i++)
+        //    {
+        //        for (int j = 1; j <= colCount; j++)
+        //        {
+        //            //write the value to the Grid
+        //            var cell = xlRange.Cells[i + 1, j];
+        //            var cellValue = xlRange.Cells[i + 1, j].Value2;
+        //            // xlRange.Cells[i + 1, j]  to skip Header
+        //            if (xlRange.Cells[i + 1, j] != null && xlRange.Cells[i + 1, j].Value2 != null)
+        //            {
+        //                dataGrid.Rows[i - 1].Cells[j].Value = xlRange.Cells[i + 1, j].Value2.ToString();
+        //            }
+        //            // Console.Write(xlRange.Cells[i, j].Value2.ToString() + "\t");
 
-                    //add useful things here!
-                }
-            }
+        //            //add useful things here!
+        //        }
+        //    }
 
-            //cleanup
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
+        //    //cleanup
+        //    GC.Collect();
+        //    GC.WaitForPendingFinalizers();
 
-            //rule of thumb for releasing com objects:
-            //  never use two dots, all COM objects must be referenced and released individually
-            //  ex: [somthing].[something].[something] is bad
+        //    //rule of thumb for releasing com objects:
+        //    //  never use two dots, all COM objects must be referenced and released individually
+        //    //  ex: [somthing].[something].[something] is bad
 
-            //release com objects to fully kill excel process from running in the background
-            Marshal.ReleaseComObject(xlRange);
-            Marshal.ReleaseComObject(xlWorksheet);
+        //    //release com objects to fully kill excel process from running in the background
+        //    Marshal.ReleaseComObject(xlRange);
+        //    Marshal.ReleaseComObject(xlWorksheet);
 
-            //close and release
-            xlWorkbook.Close();
-            Marshal.ReleaseComObject(xlWorkbook);
+        //    //close and release
+        //    xlWorkbook.Close();
+        //    Marshal.ReleaseComObject(xlWorkbook);
 
-            //quit and release
-            xlApp.Quit();
-            Marshal.ReleaseComObject(xlApp);
-        }
+        //    //quit and release
+        //    xlApp.Quit();
+        //    Marshal.ReleaseComObject(xlApp);
+        //}
     }
 }

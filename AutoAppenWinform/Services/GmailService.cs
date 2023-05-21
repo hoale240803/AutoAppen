@@ -1,10 +1,13 @@
-﻿using AutoAppenWinform.Utils;
+﻿using AutoAppenWinform.Models.HideMyAcc;
+using AutoAppenWinform.Utils;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Gmail.v1.Data;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
+using Microsoft.VisualBasic.ApplicationServices;
 using Newtonsoft.Json;
 using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
 using System.Diagnostics;
 using System.Drawing.Imaging;
 using System.Net;
@@ -12,6 +15,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using ZXing;
 using ZXing.Common;
+using static AutoAppenWinform.Services.StartProfileOptions;
 using GmailServices = Google.Apis.Gmail.v1.GmailService;
 using IGmailService = AutoAppenWinform.Services.Interfaces.IGmailService;
 using Message = Google.Apis.Gmail.v1.Data.Message;
@@ -149,27 +153,37 @@ namespace AutoAppenWinform.Services
 
         public async Task<string> GetAccessToken()
         {
-            // Generates state and PKCE values.
+            // 1.Generates state and PKCE values.
             // More details https://developers.google.com/identity/protocols/oauth2/native-app
             string state = GmailUtils.randomDataBase64url(32);
             string code_verifier = GmailUtils.randomDataBase64url(32);
             string code_challenge = GmailUtils.base64urlencodeNoPadding(GmailUtils.sha256(code_verifier));
             const string code_challenge_method = "S256";
 
-            // Creates a redirect URI using an available port on the loopback address.
+            // 2. Creates a redirect URI using an available port on the loopback address.
             string redirectURI = string.Format("http://{0}:{1}/", IPAddress.Loopback, GmailUtils.GetRandomUnusedPort());
             Output("redirect URI: " + redirectURI);
 
-            // Creates an HttpListener to listen for requests on that redirect URI.
+            // 3.Creates an HttpListener to listen for requests on that redirect URI.
             var http = new HttpListener();
             http.Prefixes.Add(redirectURI);
             Output("Listening..");
             http.Start();
 
-            // Creates the OAuth 2.0 authorization request.
+            // 4. Creates the OAuth 2.0 authorization request.
             var authorizationRequest = CreateGmailOAth2AuthorizationRequest(redirectURI, state, code_challenge, code_challenge_method);
 
-            Process.Start("\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\"", authorizationRequest);
+            var option = new ChromeOptions();
+            option.DebuggerAddress = @"127.0.0.1:9222";
+            //option.DebuggerAddress = "http://localhost:9222";
+            WebDriver driver = new ChromeDriver(option);
+
+            //driver.Navigate().GoToUrl("https://accounts.google.com/");
+            driver.Navigate().GoToUrl(authorizationRequest);
+            //Process.Start("\"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe\"", authorizationRequest);
+
+
+
 
             var context = await http.GetContextAsync();
 
@@ -336,6 +350,8 @@ namespace AutoAppenWinform.Services
             }
         }
 
+
+        
         public async Task<string> GetGmailVerificationCode(string access_token)
         {
             try
@@ -352,21 +368,35 @@ namespace AutoAppenWinform.Services
                 gmailRequest.ContentType = "application/x-www-form-urlencoded";
                 gmailRequest.Accept = "Accept=text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
 
+                Message firstMessage = null;
                 // gets the response
                 WebResponse userinfoResponse = await gmailRequest.GetResponseAsync();
-                using (StreamReader userinfoResponseReader = new StreamReader(userinfoResponse.GetResponseStream()))
-                {
-                    // reads response body
-                    string gmailResponseText = await userinfoResponseReader.ReadToEndAsync();
+                using StreamReader userinfoResponseReader = new StreamReader(userinfoResponse.GetResponseStream());
+                // reads response body
+                string gmailResponseText = await userinfoResponseReader.ReadToEndAsync();
 
-                    // TODO: TADA get list messages
+                // TODO: TADA get list messages
+                var myUnReadMsg = JsonConvert.DeserializeObject<ListMessagesResponse>(gmailResponseText);
 
-                    var myUnReadMsg = JsonConvert.DeserializeObject<ListMessagesResponse>(gmailResponseText);
+                Output(gmailResponseText);
 
-                    Output(gmailResponseText);
+                firstMessage = myUnReadMsg?.Messages?.FirstOrDefault();
 
-                    return gmailResponseText;
-                }
+
+                var threadId = firstMessage?.ThreadId;
+                var detailUrl = $"https://gmail.googleapis.com/gmail/v1/users/me/messages/{threadId}";
+
+                using var client = new HttpClient();
+                var response = await client.GetAsync(detailUrl);
+
+                var resStr = await response.Content.ReadAsStringAsync();
+
+                // TOD using 
+                var hideMyAccBaseRes = JsonConvert.DeserializeObject<HideMyAccBaseRes<HideMyAccProfile>>(resStr);
+
+                return gmailResponseText;
+
+
             }
             catch (Exception ex)
             {
@@ -409,6 +439,8 @@ namespace AutoAppenWinform.Services
             return gmailService;
         }
 
+
+        // TODO more detail https://developers.google.com/gmail/api/reference/rest/v1/users.messages/list
         public void GetUnreadMessages()
         {
             var messages = _gmailServiceCon.Users.Messages.List("me");
