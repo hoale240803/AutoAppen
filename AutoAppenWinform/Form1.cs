@@ -1,18 +1,21 @@
 ﻿using AutoAppenWinform.Enum;
 using AutoAppenWinform.Models.HideMyAcc;
-using AutoAppenWinform.Resources;
 using AutoAppenWinform.Services.Interfaces;
 using AutoAppenWinform.Utils;
+using Microsoft.Office.Interop.Excel;
 using Newtonsoft.Json;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Support.UI;
 using System.Diagnostics;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
-using static System.Net.Mime.MediaTypeNames;
-//using Application = Microsoft.Office.Interop.Excel.Application;
-//using Range = Microsoft.Office.Interop.Excel.Range;
+using Actions = OpenQA.Selenium.Interactions.Actions;
+using Application = Microsoft.Office.Interop.Excel.Application;
+using Range = Microsoft.Office.Interop.Excel.Range;
+
+//using ExpectedConditions = OpenQA.Selenium.web
 
 namespace AutoAppenWinform
 {
@@ -259,18 +262,17 @@ namespace AutoAppenWinform
 
         private string OpenBrowser()
         {
-
             var option = new ChromeOptions();
             option.DebuggerAddress = @"127.0.0.1:9222";
             //option.DebuggerAddress = "http://localhost:9222";
             WebDriver driver = new ChromeDriver(option);
+            var (authorizationReq, state, code_vefifier, code_challenge, redirectURI, http) = GetAuthorizationRequest();
             try
             {
                 // TODO: 1. Get authorization request
-                var (authorizationReq, state, code_vefifier, code_challenge, redirectURI, http) = GetAuthorizationRequest();
+                //var (authorizationReq, state, code_vefifier, code_challenge, redirectURI, http) = GetAuthorizationRequest();
 
                 // TODO: 2. Navigation to authorizationReq;
-
                 driver.Navigate().GoToUrl("https://accounts.google.com/");
 
                 // TODO 1. case signed out => Add another account
@@ -287,7 +289,6 @@ namespace AutoAppenWinform
                 IWebElement emailTxtbox = driver.FindElement(By.XPath(emailTxtboxXPath));
                 if (emailTxtbox != null)
                 {
-
                     //driver.FindElement
                     // Identify Google Email
                     var emailParam = "trungleo08241999@gmail.com";
@@ -298,7 +299,6 @@ namespace AutoAppenWinform
                         emailTxtbox.SendKeys(e.ToString());
                         Thread.Sleep(200); // Delay of 200 milliseconds
                     }
-
 
                     // TODO: 4. Identify Continue Button
                     var continueBtnXPath = @"//*[@id=""identifierNext""]/div/button";
@@ -330,6 +330,13 @@ namespace AutoAppenWinform
             }
             catch (Exception ex)
             {
+                var emailTxtboxXPath = @"//*[@id=""identifierId""]";
+
+                // TODO: handle login account
+                if (ex.Message.Contains(emailTxtboxXPath))
+                {
+                    var accessToken = GetAccessTokenWhenUserLogon(driver);
+                }
 
                 // use another account
                 var useAnotherAccountBtn = @"//*[@id=""view_container""]/div/div/div[2]/div/div[1]/div/form/span/section/div/div/div/div/ul/li[2]";
@@ -337,6 +344,80 @@ namespace AutoAppenWinform
                 throw ex;
             }
             finally { driver.Quit(); }
+        }
+
+        private string GetAccessTokenWhenUserLogon(WebDriver driver)
+        {
+            // TODO Add another account and login again
+            var (authorizationReq, state, code_vefifier, code_challenge, redirectURI, http) = GetAuthorizationRequest();
+            var avatarXPath = @"//a[contains(@href, 'https://accounts.google.com/SignOutOptions')]";
+
+            IWebElement avatarBtn = driver.FindElement(By.XPath(avatarXPath));
+            avatarBtn.Click();
+            Thread.Sleep(2000);
+
+            try
+            {
+                IWebElement iframe = driver.FindElement(By.XPath("/html/body/div[4]/header/div[2]/div[3]/div[3]/iframe"));
+                driver.SwitchTo().Frame(iframe);
+
+                // Find the tag within the iframe using XPath
+                IWebElement tag = driver.FindElement(By.XPath("//a[contains(@href, 'https://accounts.google.com/AddSession')]"));
+    
+                var logOutXPath = @"//a[contains(@href, 'https://accounts.google.com/Logout')]";
+
+                tag.Click();
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+
+            Thread.Sleep(5000);
+            //Add another account
+
+            var emailTxtboxXPath = @"//*[@id=""identifierId""]";
+            IWebElement emailTxtbox = driver.FindElement(By.XPath(emailTxtboxXPath));
+            if (emailTxtbox != null)
+            {
+                //driver.FindElement
+                // Identify Google Email
+                var emailParam = "trungleo08241999@gmail.com";
+                var pass = "TrungLGoogle99123@";
+
+                foreach (char e in emailParam)
+                {
+                    emailTxtbox.SendKeys(e.ToString());
+                    Thread.Sleep(200); // Delay of 200 milliseconds
+                }
+
+                // TODO: 4. Identify Continue Button
+                var continueBtnXPath = @"//*[@id=""identifierNext""]/div/button";
+                IWebElement continueBtn = driver.FindElement(By.XPath(continueBtnXPath));
+                continueBtn.Click();
+                Thread.Sleep(5000);
+
+                // TODO: 5. Fill password
+                //var passTxtXPath = @"//*[@id=""password""]/div[1]/div/div[1]/input";
+                IWebElement passTxt = driver.FindElement(By.Name("Passwd"));
+
+                foreach (char p in pass)
+                {
+                    passTxt.SendKeys(p.ToString());
+                    Thread.Sleep(200); // Delay of 200 milliseconds
+                }
+
+                // TODO: 6. Identify Continue Button
+                var nextBtnXPath = @"//*[@id=""passwordNext""]/div/button";
+                IWebElement nextBtn = driver.FindElement(By.XPath(nextBtnXPath));
+                nextBtn.Click();
+
+                Thread.Sleep(2000);
+            }
+
+            var accessToken = GetAccessToken(http, state, code_vefifier, redirectURI);
+
+            return accessToken;
         }
 
         private (string authorReq, string state, string code_vefifier, string code_challenge, string redirectURI, HttpListener http) GetAuthorizationRequest()
@@ -366,45 +447,53 @@ namespace AutoAppenWinform
 
         private string GetAccessToken(HttpListener http, string state, string code_verifier, string redirectURI)
         {
-            var context = http.GetContextAsync().Result;
-
-            // Brings this app back to the foreground.
-            //this.Activate();
-
-            // Sends an HTTP response to the browser.
-            SendHTTPResponseToBrowser(http, context);
-
-            // Checks for errors.
-            if (context.Request.QueryString.Get("error") != null)
+            var accessToken = string.Empty;
+            try
             {
-                var error = string.Format("OAuth authorization error: {0}.", context.Request.QueryString.Get("error"));
-                Output(error);
-                return error;
+                var context = http.GetContextAsync().Result;
+
+                // Brings this app back to the foreground.
+                //this.Activate();
+
+                // Sends an HTTP response to the browser.
+                SendHTTPResponseToBrowser(http, context);
+
+                // Checks for errors.
+                if (context.Request.QueryString.Get("error") != null)
+                {
+                    var error = string.Format("OAuth authorization error: {0}.", context.Request.QueryString.Get("error"));
+                    Output(error);
+                    return error;
+                }
+                if (context.Request.QueryString.Get("code") == null
+                    || context.Request.QueryString.Get("state") == null)
+                {
+                    var error = "Malformed authorization response. " + context.Request.QueryString;
+                    Output(error);
+                    return error;
+                }
+
+                // extracts the code
+                var code = context.Request.QueryString.Get("code");
+                var incoming_state = context.Request.QueryString.Get("state");
+
+                // Compares the receieved state to the expected value, to ensure that
+                // this app made the request which resulted in authorization.
+                if (incoming_state != state)
+                {
+                    var error = string.Format("Received request with invalid state ({0})", incoming_state);
+                    Output(error);
+                    return error;
+                }
+                Output("Authorization code: " + code);
+
+                // Starts the code exchange at the Token Endpoint.
+                accessToken = PerformCodeExchange(code, code_verifier, redirectURI).Result;
             }
-            if (context.Request.QueryString.Get("code") == null
-                || context.Request.QueryString.Get("state") == null)
+            catch (Exception ex)
             {
-                var error = "Malformed authorization response. " + context.Request.QueryString;
-                Output(error);
-                return error;
+                throw;
             }
-
-            // extracts the code
-            var code = context.Request.QueryString.Get("code");
-            var incoming_state = context.Request.QueryString.Get("state");
-
-            // Compares the receieved state to the expected value, to ensure that
-            // this app made the request which resulted in authorization.
-            if (incoming_state != state)
-            {
-                var error = string.Format("Received request with invalid state ({0})", incoming_state);
-                Output(error);
-                return error;
-            }
-            Output("Authorization code: " + code);
-
-            // Starts the code exchange at the Token Endpoint.
-            var accessToken = PerformCodeExchange(code, code_verifier, redirectURI).Result;
 
             return accessToken;
         }
@@ -665,80 +754,80 @@ namespace AutoAppenWinform
 
         private void openFileBtn_Click(object sender, EventArgs e)
         {
-            //try
-            //{
-            //    profileExcelFile.ShowDialog();
-            //    profileExcelFile.Filter = "All files (*.*)|*.*|All files (*.*)|*.*";
-            //    //profileExcelFile.Filter = "Excel Files|*.xls;*.xlsx;*.xlsm";
+            try
+            {
+                profileExcelFile.ShowDialog();
+                profileExcelFile.Filter = "All files (*.*)|*.*|All files (*.*)|*.*";
+                //profileExcelFile.Filter = "Excel Files|*.xls;*.xlsx;*.xlsm";
 
-            //    string fileName = profileExcelFile.FileName;
+                string fileName = profileExcelFile.FileName;
 
-            //    if (profileExcelFile.ShowDialog() == DialogResult.OK)
-            //    {
-            //        fileName = profileExcelFile.FileName;
+                if (profileExcelFile.ShowDialog() == DialogResult.OK)
+                {
+                    fileName = profileExcelFile.FileName;
 
-            //        // Show path of path
-            //        excelFileTxt.Text = fileName;
-            //        LoadExcelFile(fileName);
-            //    }
-            //}
-            //catch (Exception ex)
-            //{
-            //    MessageBox.Show(ex.Message);
-            //    throw ex;
-            //}
+                    // Show path of path
+                    excelFileTxt.Text = fileName;
+                    LoadExcelFile(fileName);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+                throw ex;
+            }
         }
 
-        //private void LoadExcelFile(string fileName)
-        //{
-        //    Application xlApp = new Application();
-        //    Workbook xlWorkbook = xlApp.Workbooks.Open(fileName);
-        //    Worksheet xlWorksheet = xlWorkbook.Sheets[1];
-        //    Range xlRange = xlWorksheet.UsedRange;
+        private void LoadExcelFile(string fileName)
+        {
+            Application xlApp = new Application();
+            Workbook xlWorkbook = xlApp.Workbooks.Open(fileName);
+            Worksheet xlWorksheet = xlWorkbook.Sheets[1];
+            Range xlRange = xlWorksheet.UsedRange;
 
-        //    int rowCount = xlRange.Rows.Count;
-        //    int colCount = xlRange.Columns.Count;
+            int rowCount = xlRange.Rows.Count;
+            int colCount = xlRange.Columns.Count;
 
-        //    dataGrid.ColumnCount = colCount + 1;
-        //    dataGrid.RowCount = rowCount;
+            dataGrid.ColumnCount = colCount + 1;
+            dataGrid.RowCount = rowCount;
 
-        //    for (int i = 1; i <= rowCount; i++)
-        //    {
-        //        for (int j = 1; j <= colCount; j++)
-        //        {
-        //            //write the value to the Grid
-        //            var cell = xlRange.Cells[i + 1, j];
-        //            var cellValue = xlRange.Cells[i + 1, j].Value2;
-        //            // xlRange.Cells[i + 1, j]  to skip Header
-        //            if (xlRange.Cells[i + 1, j] != null && xlRange.Cells[i + 1, j].Value2 != null)
-        //            {
-        //                dataGrid.Rows[i - 1].Cells[j].Value = xlRange.Cells[i + 1, j].Value2.ToString();
-        //            }
-        //            // Console.Write(xlRange.Cells[i, j].Value2.ToString() + "\t");
+            for (int i = 1; i <= rowCount; i++)
+            {
+                for (int j = 1; j <= colCount; j++)
+                {
+                    //write the value to the Grid
+                    var cell = xlRange.Cells[i + 1, j];
+                    var cellValue = xlRange.Cells[i + 1, j].Value2;
+                    // xlRange.Cells[i + 1, j]  to skip Header
+                    if (xlRange.Cells[i + 1, j] != null && xlRange.Cells[i + 1, j].Value2 != null)
+                    {
+                        dataGrid.Rows[i - 1].Cells[j].Value = xlRange.Cells[i + 1, j].Value2.ToString();
+                    }
+                    // Console.Write(xlRange.Cells[i, j].Value2.ToString() + "\t");
 
-        //            //add useful things here!
-        //        }
-        //    }
+                    //add useful things here!
+                }
+            }
 
-        //    //cleanup
-        //    GC.Collect();
-        //    GC.WaitForPendingFinalizers();
+            //cleanup
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
 
-        //    //rule of thumb for releasing com objects:
-        //    //  never use two dots, all COM objects must be referenced and released individually
-        //    //  ex: [somthing].[something].[something] is bad
+            //rule of thumb for releasing com objects:
+            //  never use two dots, all COM objects must be referenced and released individually
+            //  ex: [somthing].[something].[something] is bad
 
-        //    //release com objects to fully kill excel process from running in the background
-        //    Marshal.ReleaseComObject(xlRange);
-        //    Marshal.ReleaseComObject(xlWorksheet);
+            //release com objects to fully kill excel process from running in the background
+            Marshal.ReleaseComObject(xlRange);
+            Marshal.ReleaseComObject(xlWorksheet);
 
-        //    //close and release
-        //    xlWorkbook.Close();
-        //    Marshal.ReleaseComObject(xlWorkbook);
+            //close and release
+            xlWorkbook.Close();
+            Marshal.ReleaseComObject(xlWorkbook);
 
-        //    //quit and release
-        //    xlApp.Quit();
-        //    Marshal.ReleaseComObject(xlApp);
-        //}
+            //quit and release
+            xlApp.Quit();
+            Marshal.ReleaseComObject(xlApp);
+        }
     }
 }
